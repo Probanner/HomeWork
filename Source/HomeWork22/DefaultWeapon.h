@@ -105,9 +105,9 @@ public:
 	void ChangeDispertion();
 	float FireTime = 0.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintreadWrite, Category = "ReloadLogic")
+	UPROPERTY(EditAnywhere, BlueprintreadWrite, Category = "ReloadLogic", Replicated)
 	float ReloadTime = 0.0f;
-	UPROPERTY(EditAnywhere, BlueprintreadWrite, Category = "ReloadLogicDebug")
+	UPROPERTY(EditAnywhere, BlueprintreadWrite, Category = "ReloadLogicDebug", Replicated)
 	float DebugReloadTime = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintreadWrite, Category = "DispertionLogicDebug")
@@ -122,8 +122,6 @@ public:
 		USkeletalMesh* SkeletalMeshVar = nullptr;
 
 	bool BlockFire = false;
-
-	int32 MaxRound = 40;
 
 	FVector ShootEndLocation = FVector(0);
 
@@ -165,6 +163,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	int32 GetAvailableAmmo();
 
+	//NetWork
 	UFUNCTION(Server,Unreliable)
 	void UpdateWeaponByCharacterMovement_OnServer(FVector NewShootEndLocation, bool NewShouldReduceDispertion);
 
@@ -180,4 +179,12 @@ public:
 	UFUNCTION(Client, Unreliable)
 	void PlayReloadSoundWeapon_Client(USoundBase* ReloadSoundWeapon);
 
+	UFUNCTION(NetMulticast, Reliable)
+	void OnWeaponReloadStart_Multicast();
+
+	UFUNCTION(NetMulticast, Reliable, Category = "Round")
+	void OnFireMinusRound_Multicast();
+
+	UFUNCTION(NetMulticast, Reliable, Category = "Round")
+	void OnWeaponReloadFinish_Multicast();
 };

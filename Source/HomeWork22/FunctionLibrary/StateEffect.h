@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
+#include "Engine/EngineTypes.h"
+#include "Engine/NetDriver.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "StateEffect.generated.h"
 
@@ -26,6 +28,9 @@ public:
 	bool CanBeStacked = false;
 
 	AActor* myActor = nullptr;
+
+	
+
 };
 
 UCLASS()
@@ -49,11 +54,22 @@ class HOMEWORK22_API UStateEffect_ExecuteTimer : public UStateEffect
 	GENERATED_BODY()
 public:
 
+	bool IsSupportedForNetworking() const override { return true; }
 
-	
+	virtual bool CallRemoteFunction(UFunction* Function, void* Parms, struct FOutParmRec* OutParms, FFrame* Stack) override;
+
+	virtual int32 GetFunctionCallspace(UFunction* Function, FFrame* Stack) override;
+
+	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	bool InitObject(AActor* Actor, FName ActorBoneName) override;
 	void DestroyObject() override;
+
+	UFUNCTION(NetMulticast, Reliable)
+	void RemoveEffect_Multicast();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void SetEffectScale_Multicast(FVector NewParticle);
 
 	virtual void ExecuteByTimer();
 
@@ -64,8 +80,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timer Effect")
 		float TimerRate = 1.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timer Effect")
-		UParticleSystem* ParticleForEffect;
+
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timer Effect")
 		FName BoneToAttach;
@@ -86,11 +101,19 @@ public:
 	float ScaleOfScaleVector = 0.0f;
 	int32 TimerDoneTimes = 0;
 
+	UPROPERTY(Replicated)
 	UParticleSystemComponent* ParticleEmitter = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timer Effect", Replicated)
+	UParticleSystem* ParticleForEffect;
+
 	float TimeBetween = 0.0f;
 	float TimeToDegree = 0.0f;
 	void RefreshTimerDamageTick();
 
 	void EffectScaleDecrease();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void SpawnEmitterAttached_Multicast(UParticleSystem* ParticleForStateEffect, USceneComponent* CompToAttach, FName BoneName, FVector Location, FRotator Rotation, EAttachLocation::Type LocationType, bool bAutoDestroy);
 
 };

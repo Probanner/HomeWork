@@ -25,6 +25,8 @@ public:
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
+
+	UPROPERTY(Replicated)
 	float Health = 100.0;
 
 public:	
@@ -48,4 +50,12 @@ public:
 	void DeadEvent();
 
 	bool bIsAlive = true;
+
+	//NetWork
+	UFUNCTION(NetMulticast, Reliable)
+	void OnHeathChange_Multicast(float NetHealth, float NetDamage);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void OnDead_Multicast();
+
 };

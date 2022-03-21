@@ -57,4 +57,6 @@ public:
 
 	void DestroyActor1();
 
+	UFUNCTION(NetMulticast, Reliable)
+	void ExpolisionDamage_Multicast(float BaseDamage, float MinimumDamage, const FVector& Origin, float DamageInnerRadius, float DamageOuterRadius, float DamageFalloff, TSubclassOf<class UDamageType> DamageTypeClass, const TArray<AActor*>& IgnoreActors, AActor* DamageCauser, AController* InstigatedByController, ECollisionChannel DamagePreventionChannel);
 };

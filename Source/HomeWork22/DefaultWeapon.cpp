@@ -64,9 +64,12 @@ void ADefaultWeapon::BeginPlay()
 void ADefaultWeapon::Tick(float DeltaTime)
 {	
 	Super::Tick(DeltaTime);
-	FireTick(DeltaTime);
-	ReloadTick(DeltaTime);
-	DispertionTick(DeltaTime);
+	if (HasAuthority())
+	{
+		FireTick(DeltaTime);
+		ReloadTick(DeltaTime);
+		DispertionTick(DeltaTime);
+	}
 	
 }
 
@@ -152,7 +155,7 @@ void ADefaultWeapon::WeaponInit()
 	{
 		StaticMeshWeapon->DestroyComponent();
 	}
-	//AdditionalWeaponInfo.Round = WeaponSetting.MaxRound;
+	//AdditionalWeaponInfo.Round = AdditionalWeaponInfo.MaxRound;
 }
 
 bool ADefaultWeapon::CheckWeaponCanFire()
@@ -331,7 +334,10 @@ void ADefaultWeapon::Fire()
 			UGameplayStatics::ApplyPointDamage(TraceHitResult.GetActor(), WeaponSetting.WeaponDamage, TraceHitResult.TraceStart, TraceHitResult, GetInstigatorController(), this, NULL);
 
 		}
-		AdditionalWeaponInfo.Round--;
+		// --round
+		OnFireMinusRound_Multicast();
+
+		//GEngine->AddOnScreenDebugMessage(-1,3,FColor::Blue,TEXT("AdditionalWeaponInfo.Round = ") + FString::SanitizeFloat(AdditionalWeaponInfo.Round));
 		if (GetOwner())
 		{
 
@@ -343,7 +349,7 @@ void ADefaultWeapon::Fire()
 		}
 
 
-
+		//For Character Anim
 		if (WeaponSetting.HipAnimCharFire)
 		{
 			OnFire.Broadcast(true);
@@ -427,7 +433,7 @@ void ADefaultWeapon::InitReload()
 		ReloadSound = nullptr;
 		if (WeaponSetting.SoundReload)
 		{
-			PlayReloadSoundWeapon_Client(WeaponSetting.SoundReload);			
+			PlayReloadSoundWeapon_Client(WeaponSetting.SoundReload);
 		}
 		
 		if (WeaponSetting.ReloadGunAnim)
@@ -436,20 +442,37 @@ void ADefaultWeapon::InitReload()
 			SkeletalMeshWeapon->PlayAnimation(WeaponSetting.ReloadGunAnim, false);
 		}
 
-
-		OnWeaponReloadStart.Broadcast();
+		OnWeaponReloadStart_Multicast();
+		//OnWeaponReloadStart.Broadcast();
 		//добавить анимацию
 	}
 
 }
 
-void ADefaultWeapon::FinishReload()
+
+void ADefaultWeapon::OnWeaponReloadStart_Multicast_Implementation()
+{
+	OnWeaponReloadStart.Broadcast();
+}
+
+void ADefaultWeapon::OnFireMinusRound_Multicast_Implementation()
+{
+	AdditionalWeaponInfo.Round--;
+}
+
+void ADefaultWeapon::OnWeaponReloadFinish_Multicast_Implementation()
 {
 	WeaponReloading = false;
-	
+
 	AdditionalWeaponInfo.Round = GetAvailableAmmo();
 
 	OnWeaponReloadEnd.Broadcast();
+}
+
+void ADefaultWeapon::FinishReload()
+{
+
+	OnWeaponReloadFinish_Multicast();
 
 	if (GetOwner())
 	{
@@ -542,25 +565,25 @@ int32 ADefaultWeapon::GetAvailableAmmo()
 		}
 		else
 		{
-		ResultAmmo = MyInv->WeaponSlots[MyInv->GetCurrentIndex()].AdditionalInfo.Round;
+		ResultAmmo = MyInv->WeaponSlots[MyInv->CurrentIndex].AdditionalInfo.Round;
 
 		int8 AmmoIndex = 0;
-		if (MyInv->GetAmmoIndexByType(WeaponSetting.WeaponType)!=-1)
+		if (MyInv->GetAmmoIndexByType(MyInv->WeaponSlots[MyInv->CurrentIndex].WeaponType)!=-1)
 		{
-			AmmoIndex = MyInv->GetAmmoIndexByType(WeaponSetting.WeaponType);
+			AmmoIndex = MyInv->GetAmmoIndexByType(MyInv->WeaponSlots[MyInv->CurrentIndex].WeaponType);
 
-			if (ResultAmmo + MyInv->AmmoSlots[AmmoIndex].Count >= WeaponSetting.MaxRound)
+			if (ResultAmmo + MyInv->AmmoSlots[AmmoIndex].Count >= AdditionalWeaponInfo.MaxRound)
 			{
 
 				MyInv->AmmoSlots[AmmoIndex].Count = MyInv->AmmoSlots[AmmoIndex].Count
-					- (WeaponSetting.MaxRound - ResultAmmo);
+					- (AdditionalWeaponInfo.MaxRound - ResultAmmo);
 
 
 				//Патроны в обойме класса Оружия
-				ResultAmmo += WeaponSetting.MaxRound - ResultAmmo;
+				ResultAmmo += AdditionalWeaponInfo.MaxRound - ResultAmmo;
 
 				//Патроны в обойме класса инвентаря
-				MyInv->WeaponSlots[MyInv->GetCurrentIndex()].AdditionalInfo.Round = ResultAmmo;
+				MyInv->WeaponSlots[MyInv->CurrentIndex].AdditionalInfo.Round = ResultAmmo;
 
 			}
 			else
@@ -570,7 +593,7 @@ int32 ADefaultWeapon::GetAvailableAmmo()
 
 				//Патроны в обойме класса инвентаря
 
-				MyInv->WeaponSlots[MyInv->GetCurrentIndex()].AdditionalInfo.Round = ResultAmmo;
+				MyInv->WeaponSlots[MyInv->CurrentIndex].AdditionalInfo.Round = ResultAmmo;
 				MyInv->AmmoSlots[AmmoIndex].Count = 0;
 			}
 
@@ -615,6 +638,8 @@ void ADefaultWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 
 	DOREPLIFETIME(ADefaultWeapon, AdditionalWeaponInfo);
 	DOREPLIFETIME(ADefaultWeapon, WeaponReloading);
+	DOREPLIFETIME(ADefaultWeapon, ReloadTime);
+	DOREPLIFETIME(ADefaultWeapon, DebugReloadTime);
 }
 
 void ADefaultWeapon::UpdateWeaponByCharacterMovement_OnServer_Implementation(FVector NewShootEndLocation, bool NewShouldReduceDispertion)

@@ -26,12 +26,8 @@ void UCharHealthComponent::ChangeCurrentHealth(float ChangeValue)
 	{
 		Super::ChangeCurrentHealth(ChangeValue);
 		//GEngine->AddOnScreenDebugMessage(-1,10,FColor::Green, TEXT("Super::ChangeCurrentHealth(ChangeValue)"));
-	}
-
-	
+	}	
 	// for char
-
-
 }
 
 
@@ -44,7 +40,7 @@ void UCharHealthComponent::ChangeShieldValue(float ChangeShieldValue)
 	}
 	else if (CharShield < 0)
 	{
-		 CharShield = 0.0f;
+		CharShield = 0.0f;
 	}
 
 
@@ -54,12 +50,13 @@ void UCharHealthComponent::ChangeShieldValue(float ChangeShieldValue)
 		//Обновляем таймер только после получения дамага
 		if (ChangeShieldValue < 0)
 		{
-			GetWorld()->GetTimerManager().ClearTimer(CoolDownRecoveryShieldTimer);
+			ValidateShieldTimes_Multicast(CoolDownRecoveryShieldTimer);
+			//GetWorld()->GetTimerManager().ClearTimer(CoolDownRecoveryShieldTimer);
 		}
 	
 	}
-
-	OnShieldChange.Broadcast(CharShield, ChangeShieldValue);
+	OnShieldChange_Multicast(CharShield, ChangeShieldValue);
+	//OnShieldChange.Broadcast(CharShield, ChangeShieldValue);
 }
 
 float UCharHealthComponent::GetCurrentShield()
@@ -82,12 +79,25 @@ void UCharHealthComponent::RecoveryShield()
 	if (ShieldTmp >= 100.0f)
 	{
 		CharShield = 100.0f;
-		GetWorld()->GetTimerManager().ClearTimer(CoolDownRecoveryShieldTimer);
+		ValidateShieldTimes_Multicast(CoolDownRecoveryShieldTimer);
+		//GetWorld()->GetTimerManager().ClearTimer(CoolDownRecoveryShieldTimer);
 	}
 	else
 	{
 		CharShield = ShieldTmp;
 	}
-	OnShieldChange.Broadcast(CharShield, ShieldRecoverValue);
+	OnShieldChange_Multicast(CharShield, ShieldRecoverValue);
+	//OnShieldChange.Broadcast(CharShield, ShieldRecoverValue);
 
 }
+
+void UCharHealthComponent::OnShieldChange_Multicast_Implementation(float ShieldValue, float Damage)
+{
+	OnShieldChange.Broadcast(ShieldValue, Damage);
+}
+
+void UCharHealthComponent::ValidateShieldTimes_Multicast_Implementation(FTimerHandle NetCoolDownShieldTimer)
+{
+	GetWorld()->GetTimerManager().ClearTimer(NetCoolDownShieldTimer);
+}
+

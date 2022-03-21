@@ -43,4 +43,7 @@ public:
 	UFUNCTION(BlueprintImplementableEvent)
 	void CharOverlap(UWeaponSwitchActor* ChatInventoryComponent);
 
+	UFUNCTION(Client, Reliable)
+	void CharOverlap_Client(UWeaponSwitchActor* ChatInventoryComponent);
+
 };

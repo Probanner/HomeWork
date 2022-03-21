@@ -34,7 +34,7 @@ void UWeaponSwitchActor::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	// ...
 }
 
-void UWeaponSwitchActor::SwitchWeaponToIndex(int32 ChangeToIndex, FAdditionalWeaponInfo OldInfo)
+void UWeaponSwitchActor::SwitchWeaponToIndex(int32 ChangeToIndex)
 {
 	if (WeaponSlots.IsValidIndex(ChangeToIndex))
 	{
@@ -50,25 +50,18 @@ void UWeaponSwitchActor::SwitchWeaponToIndex(int32 ChangeToIndex, FAdditionalWea
 		{
 			WeaponIndexToDrop = CurrentIndex;
 		}
-		
-		
-		/*	if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Blue, TEXT("WeaponSlots.Num() = ") + FString::FromInt(WeaponSlots.Num()) +
-				TEXT(" ||| ChangeToIndex = ") + FString::FromInt(ChangeToIndex)
-			);
-		}*/
-
-		OnSwitchWeapon.Broadcast(WeaponSlots[ChangeToIndex]);
-		CurrentIndex = GetCurrentIndex();
+			
+		OnSwitchWeapon_Server(WeaponSlots[ChangeToIndex]);
+		//OnSwitchWeapon.Broadcast(WeaponSlots[ChangeToIndex]);
 	
-
 	}
 	else
 	{
-		OnSwitchWeapon.Broadcast(WeaponSlots[0]);
-	}
+		OnSwitchWeapon_Server(WeaponSlots[0]);
 		
+		//OnSwitchWeapon.Broadcast(WeaponSlots[0]);
+	}
+	CurrentIndex = ChangeToIndex;
 	
 }
 
@@ -94,21 +87,46 @@ bool UWeaponSwitchActor::CheckAmmoForWeapon(EWeaponType _TypeWeapon)
 			return true;
 		}
 	}
-
-	OnWeaponAmmoEmpty.Broadcast(_TypeWeapon);
+	OnWeaponAmmoEmpty_Multicast(_TypeWeapon);
+	//OnWeaponAmmoEmpty.Broadcast(_TypeWeapon);
 
 	return false;
 }
 
+
+void UWeaponSwitchActor::OnWeaponAmmoEmpty_Multicast_Implementation(EWeaponType DWeaponType)
+{
+	OnWeaponAmmoEmpty.Broadcast(DWeaponType);
+}
+
+
+
+
 void UWeaponSwitchActor::FOnFireInInventory()
 {
-	OnFireInventory.Broadcast(GetCurrentIndex());
+	OnFireInventory_Multicast(CurrentIndex);
+	//OnFireInventory.Broadcast(GetCurrentIndex());
+}
+
+
+
+void UWeaponSwitchActor::OnFireInventory_Multicast_Implementation(int32 CurrentWeaponIndexInventory)
+{
+	OnFireInventory.Broadcast(CurrentWeaponIndexInventory);
 }
 
 void UWeaponSwitchActor::ReloadInInventory()
 {
-	OnReloadInInventory.Broadcast(GetCurrentIndex());
+	OnReloadInInventory_Multicast(CurrentIndex);
+	//OnReloadInInventory.Broadcast(GetCurrentIndex());
 }
+
+void UWeaponSwitchActor::OnReloadInInventory_Multicast_Implementation(int32 CurrentWeaponIndexInventory)
+{
+	OnReloadInInventory.Broadcast(CurrentWeaponIndexInventory);
+}
+
+
 
 int32 UWeaponSwitchActor::ReturnLastingAmmo(EWeaponType _TypeWeapon)
 {
@@ -126,23 +144,32 @@ int32 UWeaponSwitchActor::ReturnLastingAmmo(EWeaponType _TypeWeapon)
 
 bool UWeaponSwitchActor::CheckCanTakeAmmo(EWeaponType AmmoType)
 {
+	bool result = false;
 	for (int i = 0; i< AmmoSlots.Num();i++) 
 	{
-		if (AmmoSlots[i].Count < AmmoSlots[i].MaxCount && AmmoSlots[i].WeaponType == AmmoType)
+		if (AmmoSlots[i].WeaponType == AmmoType)
 		{
-			 return true;
-		}
-		if (i==AmmoSlots.Num()-1 && AmmoSlots[i].WeaponType != AmmoType)
-		{
-			FAmmoSlot NewSlot;
-			NewSlot.Count = 0;
-			NewSlot.MaxCount = 100;
-			NewSlot.WeaponType = AmmoType;
-			AmmoSlots.Add(NewSlot);
-			return true;
+			if (AmmoSlots[i].Count < AmmoSlots[i].MaxCount)
+			{
+				result = true;
+			}
+			else
+			{
+				return false;
+			}
 		}
 	}
-	return false;
+	if (!result)
+	{
+		FAmmoSlot NewSlot;
+		NewSlot.Count = 0;
+		NewSlot.MaxCount = 100;
+		NewSlot.WeaponType = AmmoType;
+		AmmoSlots.Add(NewSlot);
+		result = true;
+	}
+
+	return result;
 }
 
 //Проверка на свободный слот
@@ -160,8 +187,8 @@ void UWeaponSwitchActor::SwitchWeaponToInventory(FWeaponSlot NewWeapon, int32 In
 	if (WeaponSlots.IsValidIndex(IndexOfSlot) /* && DropCurrentWeaponFromInventory(IndexOfSlot)*/)
 	{
 		WeaponSlots[IndexOfSlot] = NewWeapon;
-		OnSwitchWeapon.Broadcast(NewWeapon);
-
+		OnSwitchWeapon_Server(NewWeapon);
+		//OnSwitchWeapon.Broadcast(NewWeapon);
 	}
 
 }
@@ -193,11 +220,16 @@ bool UWeaponSwitchActor::DropCurrentWeaponFromInventory(ADefaultWeapon* CurrentW
 			// Патроны
 			WeaponToDrop.Count = WeaponSlots[CurrentIndex].AdditionalInfo.Round;
 
+			WeaponToDrop.MaxRound = WeaponSlots[CurrentIndex].AdditionalInfo.MaxRound;
+
 			if (CurrentWeapon->GetOwner()->GetClass()->ImplementsInterface(UIGameActor::StaticClass()))
 			{
 				IIGameActor::Execute_DropWeaponItem(GetOwner(), WeaponToDrop);
 			}
-			WeaponSlots.RemoveAt(GetCurrentIndex());
+			WeaponSlots.RemoveAt(CurrentIndex);
+			//CurrentIndex = 0;
+
+			CurrentIndex = 1;
 		}
 		else
 		{
@@ -240,71 +272,23 @@ int32 UWeaponSwitchActor::GetIndexToChange()
 	return 0;
 }
 
-int32 UWeaponSwitchActor::GetCurrentIndex()
-{
-
-	if (GetOwner())
-	{
-
-		AHomeWork22Character* MyChar = Cast<AHomeWork22Character>(GetOwner());
-
-		ADefaultWeapon* MyWeapon = Cast<ADefaultWeapon>(MyChar->GetCurrentWeapon());
-		if (MyWeapon)
-		{
-			for (int i = 0; i < WeaponSlots.Num();i++)
-			{
-				if (MyWeapon->WeaponSetting.WeaponName == WeaponSlots[i].ItemName)
-				{
-					CurrentIndex = i;
-					return i;
-				}
-			}
-		}
-		else
-		{
-		//Debug
-			/*if (GEngine)
-			{
-				GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, TEXT("UWeaponSwitchActor::GetCurrentIndex ||| (MyWeapon): FALSE"));
-			}*/
-		}
-	}
-	else
-	{
-	//Debug
-		/*if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, TEXT("UWeaponSwitchActor::GetCurrentIndex ||| GetOwner: FALSE"));
-		}*/
-	}
-	//Debug
-	/*if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, TEXT("Returned current Index: 0 FALSE"));
-	}*/
-	return 0;
-}
-
 void UWeaponSwitchActor::InitInventory_OnServer_Implementation(const TArray<FWeaponSlot>& WeaponSlotsToInit, const TArray<FAmmoSlot>& AmmoSlotToInit)
 {
 	WeaponSlots = WeaponSlotsToInit;
 	AmmoSlots = AmmoSlotToInit;
+	//BroadCast?
 }
 
 
-void UWeaponSwitchActor::SwapWeapon(int32 IndexToChange)
+void UWeaponSwitchActor::OnSwitchWeapon_Server_Implementation(FWeaponSlot WeaponSlot)
 {
-	if (WeaponSlots.IsValidIndex(IndexToChange))
-	{
-		if (!WeaponSlots[0].ItemName.IsNone())
-		{
-			OnSwitchWeapon.Broadcast(WeaponSlots[IndexToChange]);
+	OnSwitchWeapon_Multicast(WeaponSlot);
+}
 
-		}
-	}
-	WeaponIndexToDrop = IndexToChange+1;
-	CurrentIndex = IndexToChange;
-	FOnFireInInventory();
+
+void UWeaponSwitchActor::OnSwitchWeapon_Multicast_Implementation(FWeaponSlot Multicast_WeaponSlot)
+{
+	OnSwitchWeapon.Broadcast(Multicast_WeaponSlot);
 }
 
 //добавление оружия к инвентарю
@@ -316,13 +300,19 @@ bool UWeaponSwitchActor::TryGetWeaponToInventory(FWeaponSlot NewWeapon)
 		if (WeaponSlots.IsValidIndex(FreeIndexSlot))
 		{
 			WeaponSlots[FreeIndexSlot] = NewWeapon;
-			OnInventoryWeaponPickUpSuccess.Broadcast(FreeIndexSlot, WeaponSlots[FreeIndexSlot]);
+			OnInventoryWeaponPickUpSuccess_Multicast(FreeIndexSlot, WeaponSlots[FreeIndexSlot]);				
 			return true;
 		}
 	
 	}
 	return false;
 }
+
+void UWeaponSwitchActor::OnInventoryWeaponPickUpSuccess_Multicast_Implementation(int32 NetFreeIndexSlot, FWeaponSlot NetWeaponSlot)
+{
+	OnInventoryWeaponPickUpSuccess.Broadcast(NetFreeIndexSlot, NetWeaponSlot);
+}
+
 
 bool UWeaponSwitchActor::CheckCanTakeWeapon(int32& FreeSlotIndex, FName _NewWeaponName)
 {
@@ -394,24 +384,30 @@ void UWeaponSwitchActor::AmmoSlotChangeValue(EWeaponType _WeaponType, int32 Coun
 {
 	for (int i = 0; i<AmmoSlots.Num();i++)
 	{
-
-		
 		if (AmmoSlots[i].WeaponType == _WeaponType)
 		{
-			
-
-
 			AmmoSlots[i].Count += CountChangeAmmo;
+
 			if (AmmoSlots[i].Count>AmmoSlots[i].MaxCount)
 			{
 				AmmoSlots[i].Count = AmmoSlots[i].MaxCount;
+			
 			}
 			//broadcast for widget
-			OnAmmoChange.Broadcast(AmmoSlots[i].WeaponType, AmmoSlots[i].Count);
+			OnAmmoChange_Multicast(AmmoSlots[i].WeaponType, AmmoSlots[i].Count);
+			//OnAmmoChange.Broadcast(AmmoSlots[i].WeaponType, AmmoSlots[i].Count);
 		}
+		
 	}
+
 	
 }
+
+void UWeaponSwitchActor::OnAmmoChange_Multicast_Implementation(EWeaponType TypeAmmo, int32 _Count)
+{
+	OnAmmoChange.Broadcast(TypeAmmo, _Count);
+}
+
 
 void UWeaponSwitchActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -419,4 +415,5 @@ void UWeaponSwitchActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 
 	DOREPLIFETIME(UWeaponSwitchActor, WeaponSlots);
 	DOREPLIFETIME(UWeaponSwitchActor, AmmoSlots);
+	DOREPLIFETIME(UWeaponSwitchActor, CurrentIndex);
 }

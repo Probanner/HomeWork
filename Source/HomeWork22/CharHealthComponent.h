@@ -47,4 +47,11 @@ public:
 	void CoolDownShieldEnd();
 
 	void RecoveryShield();
+
+	//NetWork
+	UFUNCTION(NetMulticast, Reliable)
+	void OnShieldChange_Multicast(float ShieldValue, float Damage);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void ValidateShieldTimes_Multicast(FTimerHandle NetCoolDownShieldTimer);
 };

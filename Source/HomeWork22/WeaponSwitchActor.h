@@ -63,15 +63,16 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Weapons", Replicated)
 	TArray<FAmmoSlot> AmmoSlots;
+
 	UPROPERTY(BlueprintReadOnly)
 	int32 WeaponIndexToDrop = 0;
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(BlueprintReadOnly, Replicated)
 		int32 CurrentIndex = 0;
 
 
 	UFUNCTION(BlueprintCallable)
-	void SwitchWeaponToIndex(int32 ChangeToIndex, FAdditionalWeaponInfo OldInfo);
+	void SwitchWeaponToIndex(int32 ChangeToIndex);
 
 
 	UFUNCTION(BlueprintCallable)
@@ -92,7 +93,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void AmmoSlotChangeValue(EWeaponType _WeaponType, int32 CountChangeAmmo);
 
-	int32 MaxWeaponInInventory = 4;
+	int32 MaxWeaponInInventory = 3;
 
 	//Interface Pickup Actors
 	UFUNCTION(BlueprintCallable, Category = "Item pickup Interface")
@@ -126,14 +127,35 @@ public:
 	int32 GetIndexToChange();
 
 
-	UFUNCTION(BlueprintCallable, Category = "Inventory")
-		int32 GetCurrentIndex();
+	/*UFUNCTION(BlueprintCallable, Category = "Inventory")
+		int32 GetCurrentIndex();*/
 
 	UFUNCTION(Server,BlueprintCallable, Category = "Inventory",Reliable)
 	void InitInventory_OnServer(const TArray<FWeaponSlot>& WeaponSlotsToInit, const TArray<FAmmoSlot>& AmmoSlotToInit);
 
 
-	UFUNCTION(BlueprintCallable, Category = "Inventory")
-	void SwapWeapon(int32 IndexToChange);
+	//Network
+
+	//Widgets delegates
+	UFUNCTION(Server, Reliable, Category = "Inventory")
+	void OnSwitchWeapon_Server(FWeaponSlot WeaponSlot);
+
+	UFUNCTION(NetMulticast, Reliable, Category = "Inventory")
+	void OnSwitchWeapon_Multicast(FWeaponSlot Multicast_WeaponSlot);
+
+	UFUNCTION(NetMulticast, Reliable, Category = "Inventory")
+	void OnAmmoChange_Multicast(EWeaponType TypeAmmo, int32 _Count);
+
+	UFUNCTION(NetMulticast, Reliable, Category = "Inventory")
+	void OnWeaponAmmoEmpty_Multicast(EWeaponType DWeaponType);
+
+	UFUNCTION(NetMulticast, Reliable, Category = "Inventory")
+	void OnFireInventory_Multicast(int32 CurrentWeaponIndexInventory);
+
+	UFUNCTION(NetMulticast, Reliable, Category = "Inventory")
+	void OnReloadInInventory_Multicast(int32 CurrentWeaponIndexInventory);
+
+	UFUNCTION(Client, Reliable, Category = "Inventory")
+	void OnInventoryWeaponPickUpSuccess_Multicast(int32 NetFreeIndexSlot, FWeaponSlot NetWeaponSlot);
 
 };

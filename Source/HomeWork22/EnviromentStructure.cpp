@@ -5,6 +5,7 @@
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "Kismet/GameplayStatics.h"
 #include "DrawDebugHelpers.h"
+#include "Net/UnrealNetwork.h"
 #include "FunctionLibrary/Types.h"
 
 
@@ -24,7 +25,7 @@ AEnviromentStructure::AEnviromentStructure()
 	DestructibleMesh = CreateDefaultSubobject<UDestructibleComponent>("DestructibleMesh");
 	DestructibleMesh->SetupAttachment(SceneComponent);
 
-
+	SetReplicates(true);
 
 }
 
@@ -95,7 +96,9 @@ void AEnviromentStructure::Explosion(float BaseDamageValue, float Radius, UParti
 
 		TArray<AActor*> IgnoredActor;
 		IgnoredActor.Add(this);
-		bool Explosions = UGameplayStatics::ApplyRadialDamageWithFalloff(GetWorld(), BaseDamageValue, BaseDamageValue *0.4, this->GetActorLocation()+FVector(0,0,10),Radius*0.4,Radius,1,nullptr,IgnoredActor,this,nullptr, ECollisionChannel::ECC_Visibility);
+		ExpolisionDamage_Multicast(BaseDamageValue, BaseDamageValue * 0.4, this->GetActorLocation() + FVector(0, 0, 10), Radius * 0.4, Radius, 1, nullptr, IgnoredActor, this, nullptr, ECollisionChannel::ECC_Visibility);
+
+		//bool Explosions = UGameplayStatics::ApplyRadialDamageWithFalloff(GetWorld(), BaseDamageValue, BaseDamageValue *0.4, this->GetActorLocation()+FVector(0,0,10),Radius*0.4,Radius,1,nullptr,IgnoredActor,this,nullptr, ECollisionChannel::ECC_Visibility);
 
 
 		for (auto HitRes : HitResults)
@@ -113,13 +116,14 @@ void AEnviromentStructure::Explosion(float BaseDamageValue, float Radius, UParti
 
 		FTransform NewTransform;
 		NewTransform = this->GetActorTransform();
+
 		if (ExplosionParticle)
 		{
 			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ExplosionParticle, NewTransform);
 		}
 		if (ExplosionSound)
 		{
-			UGameplayStatics::PlaySoundAtLocation(GetWorld(), ExplosionSound, this->GetActorLocation());
+			UGameplayStatics::PlaySoundAtLocation(GetWorld(), ExplosionSound, NewTransform.GetLocation());
 		}
 
 		if (bDrawDebug)
@@ -152,4 +156,10 @@ void AEnviromentStructure::DestroyActor1()
 {
 	this->Destroy();
 }
+
+void AEnviromentStructure::ExpolisionDamage_Multicast_Implementation(float BaseDamage, float MinimumDamage, const FVector& Origin, float DamageInnerRadius, float DamageOuterRadius, float DamageFalloff, TSubclassOf<class UDamageType> DamageTypeClass, const TArray<AActor*>& IgnoreActors, AActor* DamageCauser, AController* InstigatedByController, ECollisionChannel DamagePreventionChannel)
+{
+	bool Explosions = UGameplayStatics::ApplyRadialDamageWithFalloff(GetWorld(), BaseDamage, MinimumDamage, Origin + FVector(0, 0, 10), DamageInnerRadius * 0.4, DamageOuterRadius, 1, nullptr, IgnoreActors, DamageCauser, InstigatedByController, DamagePreventionChannel);
+}
+
 

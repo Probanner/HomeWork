@@ -10,6 +10,7 @@
 #include "FunctionLibrary/Types.h"
 
 #include "Net/UnrealNetwork.h"
+#include "Engine/ActorChannel.h"
 
 #include "FunctionLibrary/IGameActor.h"
 #include "WeaponSwitchActor.h"
@@ -42,6 +43,12 @@ public:
 	UCapsuleComponent* MyCapsule = this->GetCapsuleComponent();
 
 	FTimerHandle RagDollTimer;
+
+	virtual bool ReplicateSubobjects(class UActorChannel* Channel, class FOutBunch* Bunch, FReplicationFlags* RepFlags) override;
+
+	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+
 
 private:
 	/** Top down camera */
@@ -100,16 +107,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inputs")
 		bool InputBlock = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ReloadSystem",Replicated)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ReloadSystem", Replicated)
 		bool IsReloading = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AbilityEffect")
-		TSubclassOf<UStateEffect> AbilityEffect;
+	UPROPERTY(BlueprintReadOnly, Category = "AbilityEffect", Replicated)
+		UStateEffect* AbilityEffect;
 
 
 	//Текущее оружие
 	UPROPERTY(Replicated)
 	ADefaultWeapon* CurrentWeapon = nullptr;
+
 	FVector CursorHitResultLocation;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
@@ -178,10 +186,12 @@ public:
 	UFUNCTION()
 		void FireMontage(bool _bHaveAnim);
 
-	void WeaponChangeCharacterForDelegate(int32 ChangeToIndex);
+	UFUNCTION(Server, Reliable)
+	void WeaponChangeCharacterForDelegate_OnServer(int32 ChangeToIndex);
 
-	UFUNCTION(BlueprintCallable)
-		bool WeaponChangeCharacter(int32 ChangeToIndex);
+	UFUNCTION(NetMulticast, Reliable)
+	void WeaponChangeCharacterForDelegate_Multicast(int32 NetChangeToIndex);
+
 
 
 	void StopAllAminChar();
@@ -217,8 +227,8 @@ public:
 		EPhysicalSurface GetSurfaceType() override;
 
 	//Ability Function
-	UFUNCTION()
-		void TryAbilityEnabled();
+	/*UFUNCTION()
+		void TryAbilityEnabled();*/
 
 	//EndOfInterface
 
@@ -257,12 +267,19 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void StartReloadChar_Multicast(UAnimMontage* ReloadMontage, float ReloadTime);
 
-
 	UFUNCTION(Server, Reliable)
-	void ReloadInit_Multicast();
+	void ReloadInit_Server();
 
 	UFUNCTION(Server, Reliable)
 	void StopAllAnim_Server();
 
+	UFUNCTION(NetMulticast, Reliable)
+	void UpdateCharHealth_Multicast(float Damage);
+
+	UFUNCTION(Server, Reliable)
+	void DropWeaponChar_Server(ADefaultWeapon* WeaponToDrop);
+
+	UFUNCTION(NetMulticast, Reliable)
+		void DropWeaponChar_Multicast(ADefaultWeapon* WeaponToDrop);
 };
 

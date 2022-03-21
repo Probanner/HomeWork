@@ -21,6 +21,8 @@ APickupActor::APickupActor()
 	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent1"));
 	MeshComponent->SetupAttachment(RootComponent);
 
+	SetReplicates(true);
+
 }
 
 // Called when the game starts or when spawned
@@ -45,8 +47,14 @@ void APickupActor::CollisionSphereBeginOverlap(UPrimitiveComponent* OverlappedCo
 		UWeaponSwitchActor* InventoryComp = Cast<UWeaponSwitchActor>(OverlappedChar->GetComponentByClass(UWeaponSwitchActor::StaticClass()));
 		if (InventoryComp)
 		{
-			CharOverlap(InventoryComp);
+			CharOverlap_Client(InventoryComp);
+			//CharOverlap(InventoryComp);
 		}
 	}
+}
+
+void APickupActor::CharOverlap_Client_Implementation(UWeaponSwitchActor* ChatInventoryComponent)
+{
+	CharOverlap(ChatInventoryComponent);
 }
 

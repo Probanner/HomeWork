@@ -28,6 +28,7 @@ ASpawnLootActor::ASpawnLootActor()
 
 	ParticleFx = CreateDefaultSubobject<UParticleSystemComponent>(TEXT("Particle System"));
 	ParticleFx->SetupAttachment(CollisionSphere);
+	SetReplicates(true);
 }
 
 // Called when the game starts or when spawned

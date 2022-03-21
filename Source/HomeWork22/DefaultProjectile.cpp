@@ -84,11 +84,7 @@ void ADefaultProjectile::BulletCollisionSphereHit(class UPrimitiveComponent* Hit
 			SpawnHitDecal_Multicast(myMaterial, OtherComponent, Hit, ProjectileSetting.bIsLikeBomb);
 
 		}
-		if (ProjectileSetting.HitFXs.Contains(mySurfaceType))
-		{		
-			//Net Multicast
-			SpawnHitFX_Multicast(ProjectileSetting.HitFXs[mySurfaceType],Hit);
-		}
+		
 
 		TArray<USoundBase*> SoundsOfSurf;
 
@@ -99,11 +95,7 @@ void ADefaultProjectile::BulletCollisionSphereHit(class UPrimitiveComponent* Hit
 				SoundsOfSurf.Add(SurfSound.Key);
 			}
 		}
-		if (SoundsOfSurf.Num() > 0)
-		{
-			int RandomSoundIndex = FMath::RandRange(0, SoundsOfSurf.Num() - 1);
-			SpawnHitSound_Multicast(SoundsOfSurf[RandomSoundIndex],Hit);
-		}
+		
 
 
 		//damage drop per distance
@@ -177,6 +169,18 @@ void ADefaultProjectile::BulletCollisionSphereHit(class UPrimitiveComponent* Hit
 			RenderTargetPrint(HitComp, OtherActor, OtherComponent, NormalImpulse, Hit, FindCollisionUVOnSkeletalMesh(Hit));
 		}
 
+		if (SoundsOfSurf.Num() > 0)
+		{
+			int RandomSoundIndex = FMath::RandRange(0, SoundsOfSurf.Num() - 1);
+			SpawnHitSound_Multicast(SoundsOfSurf[RandomSoundIndex], Hit);
+		}
+
+		if (ProjectileSetting.HitFXs.Contains(mySurfaceType))
+		{
+			//Net Multicast
+			SpawnHitFX_Multicast(ProjectileSetting.HitFXs[mySurfaceType], Hit);
+		}
+
 		this->Destroy();
 	}
 }
@@ -246,8 +250,6 @@ void ADefaultProjectile::InitProjectile(FProjectileInfo InitParam, FVector Direc
 {
 	ProjectileSetting = InitParam;
 	SpeedInit_Multicast(Direction, ProjectileSetting.ProjectileSpeed);
-	
-
 	
 	this->SetLifeSpan(InitParam.ProjectileLifeTime);
 

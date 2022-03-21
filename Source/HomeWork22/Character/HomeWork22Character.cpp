@@ -12,6 +12,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "HomeWork22.h"
 
+
 #include "Kismet/KismetMathLibrary.h"
 #include "Materials/Material.h"
 #include "Engine/World.h"
@@ -83,6 +84,12 @@ AHomeWork22Character::AHomeWork22Character()
 	
 	this->SetReplicates(true);
 	
+
+	//Радиус репликации.
+	//NetCullDistanceSquared = 99999;
+	//Частота репликации (раз в секунду). 
+	//NetUpdateFrequency = 1.f;
+
 }
 
 void AHomeWork22Character::Tick(float DeltaSeconds)
@@ -153,16 +160,16 @@ void AHomeWork22Character::SetupPlayerInputComponent(UInputComponent* NewInputCo
 	// ПКМ отпускаем
 	NewInputComponent->BindAction<DELEGATE_RMBPressed>("RightMouseAim", IE_Released, this, &AHomeWork22Character::AimFunction, false);
 
-	NewInputComponent->BindAction<DELEGATE_OnenumberPressed>("SwitchWeapon0", IE_Pressed, this, &AHomeWork22Character::WeaponChangeCharacterForDelegate, int32(0));
+	NewInputComponent->BindAction<DELEGATE_OnenumberPressed>("SwitchWeapon0", IE_Pressed, this, &AHomeWork22Character::WeaponChangeCharacterForDelegate_OnServer, int32(0));
 
-	NewInputComponent->BindAction<DELEGATE_TwonumberPressed>("SwitchWeapon1", IE_Pressed, this, &AHomeWork22Character::WeaponChangeCharacterForDelegate, int32(1));
+	NewInputComponent->BindAction<DELEGATE_TwonumberPressed>("SwitchWeapon1", IE_Pressed, this, &AHomeWork22Character::WeaponChangeCharacterForDelegate_OnServer, int32(1));
 
-	NewInputComponent->BindAction<DELEGATE_ThreenumberPressed>("SwitchWeapon2", IE_Pressed, this, &AHomeWork22Character::WeaponChangeCharacterForDelegate, int32(2));
+	NewInputComponent->BindAction<DELEGATE_ThreenumberPressed>("SwitchWeapon2", IE_Pressed, this, &AHomeWork22Character::WeaponChangeCharacterForDelegate_OnServer, int32(2));
 
-	NewInputComponent->BindAction<DELEGATE_FournumberPressed>("SwitchWeapon3", IE_Pressed, this, &AHomeWork22Character::WeaponChangeCharacterForDelegate, int32(3));
+	NewInputComponent->BindAction<DELEGATE_FournumberPressed>("SwitchWeapon3", IE_Pressed, this, &AHomeWork22Character::WeaponChangeCharacterForDelegate_OnServer, int32(3));
 
 
-	NewInputComponent->BindAction("AbilityEnable", IE_Pressed, this, &AHomeWork22Character::TryAbilityEnabled);
+	//NewInputComponent->BindAction("AbilityEnable", IE_Pressed, this, &AHomeWork22Character::TryAbilityEnabled);
 
 	NewInputComponent->BindAction("DropCurrentWeapon", IE_Pressed, this, &AHomeWork22Character::DropCurrentWeaponChar);
 
@@ -211,8 +218,6 @@ void AHomeWork22Character::BeginPlay()
 			CursorToWorld->SetVisibility(true);
 		}
 	}
-
-	//WeaponInit(InitWeaponName);
 }
 
 void AHomeWork22Character::InputAxisY(float Value)
@@ -370,8 +375,6 @@ void AHomeWork22Character::ChangeMovementState()
 	{
 		myWeapon->UpdateStateWeapon_OnServer(NewMovementState);
 	}
-
-	//GEngine->AddOnScreenDebugMessage(-1, 2, FColor::Green, *UEnum::GetDisplayValueAsText(MovementState).ToString());
 }
 
 ADefaultWeapon* AHomeWork22Character::GetCurrentWeapon()
@@ -389,7 +392,6 @@ void AHomeWork22Character::WeaponInit(FWeaponSlot _NewWeaponSlot)
 		CurrentWeapon->Destroy();
 		CurrentWeapon = nullptr;
 	}
-
 
 	UHomeWork22GameInstance* myGI = Cast<UHomeWork22GameInstance>(GetGameInstance());
 	FWeaponInfo myWeaponInfo;
@@ -437,7 +439,9 @@ void AHomeWork22Character::WeaponInit(FWeaponSlot _NewWeaponSlot)
 					//Указателю CurrentWeapon присваиваем нового актора
 					CurrentWeapon = myWeapon;
 					//myWeapon->InventoryWeaponCount = WeaponSwitchComponent->AmmoSlots[GetAmmoTypeIndex()].Count;
+					myWeapon->AdditionalWeaponInfo = _NewWeaponSlot.AdditionalInfo;
 					myWeapon->WeaponSetting = myWeaponInfo;
+					myWeapon->WeaponSetting.WeaponType = _NewWeaponSlot.WeaponType;
 					myWeapon->CurrentWeaponIdName = _NewWeaponSlot.ItemName;
 					myWeapon->AdditionalWeaponInfo = _NewWeaponSlot.AdditionalInfo;
 					myWeapon->DebugReloadTime = myWeaponInfo.ReloadTime;
@@ -487,12 +491,14 @@ void AHomeWork22Character::TryReloadWeapon()
 {
 	if (GetAmmoTypeIndex() != -1 && bIsAlive)
 	{
+	FWeaponSlot CurrentWeaponInInventory = WeaponSwitchComponent->WeaponSlots[WeaponSwitchComponent->CurrentIndex];
+	
+
 		if (CurrentWeapon && WeaponSwitchComponent->AmmoSlots[GetAmmoTypeIndex()].Count != 0)
 		{
-			if (CurrentWeapon->GetWeaponRound() < CurrentWeapon->WeaponSetting.MaxRound && !CurrentWeapon->WeaponReloading)
+			if (CurrentWeaponInInventory.AdditionalInfo.Round < CurrentWeaponInInventory.AdditionalInfo.MaxRound && !CurrentWeapon->WeaponReloading)
 			{
-				ReloadInit_Multicast();
-				
+				ReloadInit_Server();			
 			}
 		}
 	}
@@ -522,7 +528,8 @@ int AHomeWork22Character::GetAmmoTypeIndex()
 {
 	for (int i = 0; i < WeaponSwitchComponent->AmmoSlots.Num(); i++)
 	{	
-		if (GetCurrentWeapon() && (WeaponSwitchComponent->AmmoSlots[i].WeaponType == GetCurrentWeapon()->WeaponSetting.WeaponType))
+	//Проверка типа оружия через инвентарь
+		if (GetCurrentWeapon() && (WeaponSwitchComponent->AmmoSlots[i].WeaponType == WeaponSwitchComponent->WeaponSlots[WeaponSwitchComponent->CurrentIndex].WeaponType))
 		{
 			return i;
 		}
@@ -556,81 +563,43 @@ void AHomeWork22Character::FireMontage(bool _bHaveAnim)
 		}
 	}
 
-	WeaponSwitchComponent->WeaponSlots[WeaponSwitchComponent->GetCurrentIndex()].AdditionalInfo.Round = GetCurrentWeapon()->GetWeaponRound();
+	WeaponSwitchComponent->WeaponSlots[WeaponSwitchComponent->CurrentIndex].AdditionalInfo.Round = GetCurrentWeapon()->GetWeaponRound();
 
 }
 
-//Сюда присылаем 
-void AHomeWork22Character::WeaponChangeCharacterForDelegate(int32 ChangeToIndex)
+
+
+//Сюда присылаем
+void AHomeWork22Character::WeaponChangeCharacterForDelegate_OnServer_Implementation(int32 ChangeToIndex)
 {
 	UHomeWork22GameInstance* myGI = Cast<UHomeWork22GameInstance>(GetWorld()->GetGameInstance());
 
 	if (myGI)
 	{
 		if (ChangeToIndex + 1 <= WeaponSwitchComponent->WeaponSlots.Num()
-			&& ChangeToIndex != WeaponSwitchComponent->GetCurrentIndex()
+			&& ChangeToIndex != WeaponSwitchComponent->CurrentIndex
 			&& !WeaponSwitchComponent->WeaponSlots[ChangeToIndex].ItemName.IsNone()
 			&& myGI->GetWeaponInfoByName(WeaponSwitchComponent->WeaponSlots[ChangeToIndex].ItemName, GetCurrentWeapon()->WeaponSetting, PistolEquiped))
 		{
 			StopAllAminChar();
 			GetCurrentWeapon()->OnWeaponReloadEnd.Broadcast();
 
-			WeaponSwitchComponent->SwitchWeaponToIndex(ChangeToIndex, GetCurrentWeapon()->AdditionalWeaponInfo);
+			WeaponChangeCharacterForDelegate_Multicast(ChangeToIndex);
+			//WeaponSwitchComponent->SwitchWeaponToIndex(ChangeToIndex, GetCurrentWeapon()->AdditionalWeaponInfo);
 		}
 		else
-		{
-			/*if (GEngine)
-			{
-				GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, TEXT("myGI - FALSE"));
-			}
-
-			if (GEngine)
-			{
-				GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, ChangeToIndex != WeaponSwitchComponent->WeaponIndexToDrop ? "True" : "false");
-			}*/
-
+		{	//Debug
+			//GEngine->AddOnScreenDebugMessage(-1,10,FColor::Orange, TEXT("WeaponChangeCharacterForDelegate_OnServer_Implementation - FALSE"));
 		}
-
-
 	}
 }
 
-bool AHomeWork22Character::WeaponChangeCharacter(int32 ChangeToIndex)
+
+void AHomeWork22Character::WeaponChangeCharacterForDelegate_Multicast_Implementation(int32 NetChangeToIndex)
 {
-
-	UHomeWork22GameInstance* myGI = Cast<UHomeWork22GameInstance>(GetWorld()->GetGameInstance());
-
-	if (myGI)
-	{
-		if (ChangeToIndex + 1 <= WeaponSwitchComponent->WeaponSlots.Num()
-			&& !WeaponSwitchComponent->WeaponSlots[ChangeToIndex].ItemName.IsNone()
-			&& myGI->GetWeaponInfoByName(WeaponSwitchComponent->WeaponSlots[ChangeToIndex].ItemName, GetCurrentWeapon()->WeaponSetting, PistolEquiped))
-		{
-			StopAllAminChar();
-
-			WeaponSwitchComponent->SwitchWeaponToIndex(ChangeToIndex, GetCurrentWeapon()->AdditionalWeaponInfo);
-			return true;
-		}
-		else
-		{
-			/*if (GEngine)
-			{
-				GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Purple, TEXT("After myGI - FALSE"));
-			}
-
-			if (GEngine)
-			{
-				GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Purple, ChangeToIndex != WeaponSwitchComponent->WeaponIndexToDrop ? "True" : "false");
-			}*/
-		}
-
-		return false;
-
-	}
-
-	return false;
-
+	WeaponSwitchComponent->SwitchWeaponToIndex(NetChangeToIndex);
 }
+
 
 void AHomeWork22Character::StopAllAminChar()
 {
@@ -665,11 +634,11 @@ void AHomeWork22Character::CharOnDeath()
 
 	GetCurrentWeapon()->WeaponFiring = false;
 
-	if (GetController())
-	{
-		GetController()->UnPossess();
-	}
-	UnPossessed();
+	//if (GetController())
+	//{
+	//	GetController()->UnPossess();
+	//}
+	//UnPossessed();
 	bIsAlive = false;
 	GetCursorToWorld()->SetVisibility(false);
 	CharDead_BP();
@@ -698,10 +667,10 @@ void AHomeWork22Character::RagDollEnable()
 float AHomeWork22Character::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser)
 {
 	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
-	//GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Orange, TEXT("AHomeWork22Character::TakeDamage"));
 	if (bIsAlive)
 	{
-		CharHealthComp->ChangeCurrentHealth(-ActualDamage);
+		UpdateCharHealth_Multicast(-ActualDamage);
+		//CharHealthComp->ChangeCurrentHealth(-ActualDamage);
 	}
 	return ActualDamage;
 }
@@ -743,19 +712,19 @@ EPhysicalSurface AHomeWork22Character::GetSurfaceType()
 	return Result;
 }
 
-void AHomeWork22Character::TryAbilityEnabled()
-{
-	if (AbilityEffect)// TODO cooldown
-	{
-		UStateEffect* NewEffect = NewObject<UStateEffect>(this, AbilityEffect);
-		if (NewEffect)
-		{
-			//Delay для таймера пока 0
-			NewEffect->InitObject(this, NAME_None);
-		}
-	}
-
-}
+//void AHomeWork22Character::TryAbilityEnabled()
+//{
+//	if (AbilityEffect)// TODO cooldown
+//	{
+//		UStateEffect* NewEffect = NewObject<UStateEffect>(this, AbilityEffect);
+//		if (NewEffect)
+//		{
+//			//Delay для таймера пока 0
+//			NewEffect->InitObject(this, NAME_None);
+//		}
+//	}
+//
+//}
 
 void AHomeWork22Character::SpawnDamageWidget_Implementation(float CurrentHealth, float Damage)
 {
@@ -764,12 +733,27 @@ void AHomeWork22Character::SpawnDamageWidget_Implementation(float CurrentHealth,
 
 void AHomeWork22Character::DropCurrentWeaponChar()
 {
-	if (WeaponSwitchComponent->WeaponSlots.Num() > 1)
+	if (WeaponSwitchComponent->WeaponSlots.Num() > 0)
 	{
-		WeaponSwitchComponent->DropCurrentWeaponFromInventory(CurrentWeapon);
-		WeaponChangeCharacter(0);
+		DropWeaponChar_Server(CurrentWeapon);
+		//WeaponSwitchComponent->DropCurrentWeaponFromInventory(CurrentWeapon);
+		//WeaponChangeCharacter(0);
 	}
 }
+
+void AHomeWork22Character::DropWeaponChar_Server_Implementation(ADefaultWeapon* WeaponToDrop)
+{
+	DropWeaponChar_Multicast(WeaponToDrop);
+	
+}
+
+void AHomeWork22Character::DropWeaponChar_Multicast_Implementation(ADefaultWeapon* WeaponToDrop)
+{
+	WeaponSwitchComponent->DropCurrentWeaponFromInventory(WeaponToDrop);
+	WeaponChangeCharacterForDelegate_OnServer(0);
+	//WeaponChangeCharacter(0);
+}
+
 
 //Network
 
@@ -801,6 +785,17 @@ void AHomeWork22Character::SetMovementState_Multicast_Implementation(EMovementSt
 }
 
 
+bool AHomeWork22Character::ReplicateSubobjects(class UActorChannel* Channel, class FOutBunch* Bunch, FReplicationFlags* RepFlags)
+{
+	bool WroteSomething = Super::ReplicateSubobjects(Channel, Bunch, RepFlags);
+
+	// Реплицируем наш объект.
+	if (AbilityEffect) WroteSomething |= Channel->ReplicateSubobject(AbilityEffect, *Bunch, *RepFlags);
+
+	return WroteSomething;
+
+}
+
 void AHomeWork22Character::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -811,6 +806,7 @@ void AHomeWork22Character::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 	DOREPLIFETIME(AHomeWork22Character, PistolEquiped);
 	DOREPLIFETIME(AHomeWork22Character, IsReloading);
 	DOREPLIFETIME(AHomeWork22Character, ReloadCharAnim);
+	DOREPLIFETIME(AHomeWork22Character, AbilityEffect);
 }
 
 void AHomeWork22Character::WeaponEquipAnimChar_Anim_Multicast_Implementation(UAnimMontage* AnimChangeMontage, float PlayRate)
@@ -835,7 +831,7 @@ void AHomeWork22Character::StartReloadChar_Multicast_Implementation(UAnimMontage
 	PlayAnimMontage(ReloadMontage, ReloadTime);
 }
 
-void AHomeWork22Character::ReloadInit_Multicast_Implementation()
+void AHomeWork22Character::ReloadInit_Server_Implementation()
 {
 	CurrentWeapon->InitReload();
 }
@@ -867,3 +863,9 @@ void AHomeWork22Character::StopAllAnim_Server_Implementation()
 		}
 	}
 }
+
+void AHomeWork22Character::UpdateCharHealth_Multicast_Implementation(float Damage)
+{
+	CharHealthComp->ChangeCurrentHealth(Damage);
+}
+

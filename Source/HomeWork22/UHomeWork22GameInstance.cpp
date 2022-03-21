@@ -149,41 +149,20 @@ TSubclassOf<class APickupActor> UHomeWork22GameInstance::GetRandomActorToDrop(in
 	{
 		int32 RandTemp = FMath::RandRange(1,100);
 
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 20, FColor::Orange, TEXT("Random = ") + FString::FromInt(RandTemp));
-		}
-
 		if (RandTemp <= CommonChance)
-		{
-			if (GEngine)
-			{
-				GEngine->AddOnScreenDebugMessage(-1, 20, FColor::Red, TEXT("Common_Type"));
-			}
+		{	
 			return GetRandomItemToDropByRariness(ERariness::Common_Type);
 		}
 		if(RandTemp > CommonChance && RandTemp <=(CommonChance+RareChance))
 		{
-			if (GEngine)
-			{
-				GEngine->AddOnScreenDebugMessage(-1, 20, FColor::Red, TEXT("Rare_Type"));
-			}
 			return GetRandomItemToDropByRariness(ERariness::Rare_Type);
 		}
 		 if (RandTemp > (CommonChance + RareChance) && RandTemp <= (CommonChance + RareChance + EpicChance))
 		{
-			if (GEngine)
-			{
-				GEngine->AddOnScreenDebugMessage(-1, 20, FColor::Red, TEXT("Epic_Type"));
-			}
 			return GetRandomItemToDropByRariness(ERariness::Epic_Type);
 		}
 		if (RandTemp > (CommonChance + RareChance + EpicChance) && RandTemp <= (CommonChance + RareChance + EpicChance + LegendaryChance))
 		{
-			if (GEngine)
-			{
-				GEngine->AddOnScreenDebugMessage(-1, 20, FColor::Red, TEXT("Legendary_Type"));
-			}
 			return GetRandomItemToDropByRariness(ERariness::Legendary_Type);
 		}
 

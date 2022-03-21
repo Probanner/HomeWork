@@ -60,6 +60,7 @@ void UTypes::AddEffectBySurfaceType(AActor* HittedActor,FName ActorBoneName, TSu
 				}
 					if (CanStackEffect)
 					{
+						
 						UStateEffect* NewEffect = NewObject<UStateEffect>(HittedActor, AddEffectClass);
 						if (NewEffect)
 						{
@@ -76,3 +77,4 @@ void UTypes::AddEffectBySurfaceType(AActor* HittedActor,FName ActorBoneName, TSu
 	}
 
 }
+

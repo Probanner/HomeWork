@@ -258,6 +258,9 @@ struct FAdditionalWeaponInfo
 	//Количество патронов в обойме
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WeaponStats")
 	int32 Round = 10;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WeaponStats")
+	int32 MaxRound = 27;
 };
 
 
@@ -280,15 +283,13 @@ struct FWeaponSlot
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WeaponSlot")
 		FAdditionalWeaponInfo AdditionalInfo;
 	
-	/*
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AmmoSlot")
 		int32 Count = 100;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AmmoSlot")
-		int MaxCount = 100;
-	*/
+		int32 MaxCount = 100;
+	
 		
-
 };
 
 
@@ -327,6 +328,9 @@ struct FDropItem : public FTableRowBase
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon Drop")
 		int32 Count = 100;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon Drop")
+		int32 MaxRound = 100;
 
 	//Редкость выпадаемого предмета
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon Rariness")
